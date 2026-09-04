@@ -14,7 +14,128 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      tokens: {
+        Row: {
+          created_at: string
+          creator_wallet: string
+          decimals: number
+          description: string | null
+          discord_url: string | null
+          id: string
+          image_url: string | null
+          mint_address: string
+          name: string
+          status: string
+          symbol: string
+          telegram_url: string | null
+          total_supply: number
+          twitter_url: string | null
+          updated_at: string
+          website_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          creator_wallet: string
+          decimals?: number
+          description?: string | null
+          discord_url?: string | null
+          id?: string
+          image_url?: string | null
+          mint_address: string
+          name: string
+          status?: string
+          symbol: string
+          telegram_url?: string | null
+          total_supply?: number
+          twitter_url?: string | null
+          updated_at?: string
+          website_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          creator_wallet?: string
+          decimals?: number
+          description?: string | null
+          discord_url?: string | null
+          id?: string
+          image_url?: string | null
+          mint_address?: string
+          name?: string
+          status?: string
+          symbol?: string
+          telegram_url?: string | null
+          total_supply?: number
+          twitter_url?: string | null
+          updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number | null
+          created_at: string
+          id: string
+          sol_amount: number | null
+          status: string
+          token_id: string | null
+          transaction_signature: string
+          type: string
+          wallet_address: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          sol_amount?: number | null
+          status?: string
+          token_id?: string | null
+          transaction_signature: string
+          type: string
+          wallet_address: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          sol_amount?: number | null
+          status?: string
+          token_id?: string | null
+          transaction_signature?: string
+          type?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
