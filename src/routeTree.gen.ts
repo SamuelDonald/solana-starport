@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExploreRouteImport } from './routes/explore'
+import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as TokenMintRouteImport } from './routes/token.$mint'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const ExploreRoute = ExploreRouteImport.update({
   id: '/explore',
   path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchRoute = LaunchRouteImport.update({
+  id: '/launch',
+  path: '/launch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortfolioRoute = PortfolioRouteImport.update({
@@ -38,12 +44,14 @@ const TokenMintRoute = TokenMintRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/launch': typeof LaunchRoute
   '/portfolio': typeof PortfolioRoute
   '/token/$mint': typeof TokenMintRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/launch': typeof LaunchRoute
   '/portfolio': typeof PortfolioRoute
   '/token/$mint': typeof TokenMintRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/launch': typeof LaunchRoute
   '/portfolio': typeof PortfolioRoute
   '/token/$mint': typeof TokenMintRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/explore' | '/portfolio' | '/token/$mint'
+  fullPaths: '/' | '/explore' | '/launch' | '/portfolio' | '/token/$mint'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/explore' | '/portfolio' | '/token/$mint'
-  id: '__root__' | '/' | '/explore' | '/portfolio' | '/token/$mint'
+  to: '/' | '/explore' | '/launch' | '/portfolio' | '/token/$mint'
+  id: '__root__' | '/' | '/explore' | '/launch' | '/portfolio' | '/token/$mint'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExploreRoute: typeof ExploreRoute
+  LaunchRoute: typeof LaunchRoute
   PortfolioRoute: typeof PortfolioRoute
   TokenMintRoute: typeof TokenMintRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/explore'
       fullPath: '/explore'
       preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launch': {
+      id: '/launch'
+      path: '/launch'
+      fullPath: '/launch'
+      preLoaderRoute: typeof LaunchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/portfolio': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExploreRoute: ExploreRoute,
+  LaunchRoute: LaunchRoute,
   PortfolioRoute: PortfolioRoute,
   TokenMintRoute: TokenMintRoute,
 }
