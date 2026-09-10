@@ -13,8 +13,10 @@ export type TokenSort =
 export async function listTokens(options: {
   search?: string;
   sort?: TokenSort;
+  limit?: number;
 }): Promise<TokenRow[]> {
-  let query = supabase.from("tokens").select("*").limit(60);
+  let query = supabase.from("tokens").select("*").limit(options.limit ?? 60);
+
 
   const search = options.search?.trim();
   if (search) {
