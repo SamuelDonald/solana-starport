@@ -4,7 +4,16 @@
 //     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+
+// rpc-websockets (pulled in by @solana/web3.js) only declares "browser" and
+// "node" export conditions, so neither the browser nor the Cloudflare/workerd
+// build can resolve it through its exports map. Alias it to the real file.
+const rpcWebsocketsBrowser = fileURLToPath(
+  new URL("./node_modules/rpc-websockets/dist/index.browser.mjs", import.meta.url),
+);
 
 export default defineConfig({
   tanstackStart: {
@@ -15,19 +24,14 @@ export default defineConfig({
   vite: {
     resolve: {
       alias: [
-        // rpc-websockets (pulled in by @solana/web3.js) only declares "browser"
-        // and "node" export conditions, so the Cloudflare/workerd build cannot
-        // resolve it. Point it straight at the browser ESM build.
-        {
-          find: /^rpc-websockets$/,
-          replacement: "rpc-websockets/dist/index.browser.mjs",
-        },
+        { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
         {
           find: /^rpc-websockets\/dist\/lib\/client\/websocket\.js$/,
-          replacement: "rpc-websockets/dist/index.browser.mjs",
+          replacement: rpcWebsocketsBrowser,
         },
       ],
     },
   },
 });
+
 
