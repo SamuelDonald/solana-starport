@@ -27,6 +27,12 @@ export const uploadTokenImage = createServerFn({ method: "POST" })
 
     if (error) throw new Error(error.message);
 
-    const { data: pub } = supabaseAdmin.storage.from("token-images").getPublicUrl(path);
-    return { url: pub.publicUrl };
+    // The bucket is private, so hand back a long-lived signed URL.
+    const { data: signed, error: signErr } = await supabaseAdmin.storage
+      .from("token-images")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+
+    if (signErr || !signed) throw new Error(signErr?.message ?? "Could not sign image URL");
+    return { url: signed.signedUrl };
   });
+
