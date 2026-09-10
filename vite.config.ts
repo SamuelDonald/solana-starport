@@ -12,4 +12,22 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    resolve: {
+      alias: [
+        // rpc-websockets (pulled in by @solana/web3.js) only declares "browser"
+        // and "node" export conditions, so the Cloudflare/workerd build cannot
+        // resolve it. Point it straight at the browser ESM build.
+        {
+          find: /^rpc-websockets$/,
+          replacement: "rpc-websockets/dist/index.browser.mjs",
+        },
+        {
+          find: /^rpc-websockets\/dist\/lib\/client\/websocket\.js$/,
+          replacement: "rpc-websockets/dist/index.browser.mjs",
+        },
+      ],
+    },
+  },
 });
+
