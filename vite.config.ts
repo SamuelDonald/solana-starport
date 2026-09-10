@@ -22,6 +22,15 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    // Most @solana/* packages only publish "browser" and "node" export
+    // conditions. The Cloudflare/workerd server build matches neither, so allow
+    // it to fall back to the browser entry points.
+    ssr: {
+      resolve: {
+        conditions: ["workerd", "worker", "browser", "module", "import", "default"],
+        externalConditions: ["workerd", "worker", "browser", "module", "import", "default"],
+      },
+    },
     resolve: {
       alias: [
         { find: /^rpc-websockets$/, replacement: rpcWebsocketsBrowser },
@@ -33,5 +42,6 @@ export default defineConfig({
     },
   },
 });
+
 
 
