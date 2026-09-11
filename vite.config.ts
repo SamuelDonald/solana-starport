@@ -28,6 +28,20 @@ const workerConditions = [
   "default",
 ];
 
+// @solana-mobile/wallet-adapter-mobile runs Node-only prototype wiring at
+// import time and crashes the worker at runtime. Mobile wallet support is
+// browser-only, so server builds get a harmless stub instead.
+const solanaMobileSsrStub = fileURLToPath(
+  new URL("./src/lib/solana-mobile-ssr-stub.ts", import.meta.url),
+);
+
+const serverAlias = [
+  {
+    find: /^@solana-mobile\/wallet-adapter-mobile$/,
+    replacement: solanaMobileSsrStub,
+  },
+];
+
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
@@ -36,8 +50,8 @@ export default defineConfig({
   },
   vite: {
     environments: {
-      nitro: { resolve: { conditions: workerConditions } },
-      ssr: { resolve: { conditions: workerConditions } },
+      nitro: { resolve: { conditions: workerConditions, alias: serverAlias } },
+      ssr: { resolve: { conditions: workerConditions, alias: serverAlias } },
     },
     resolve: {
       alias: [
