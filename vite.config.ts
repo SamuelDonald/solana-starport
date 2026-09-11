@@ -37,10 +37,11 @@ const solanaMobileSsrStub = fileURLToPath(
 
 const solanaMobileServerStubPlugin = {
   name: "solana-mobile-server-stub",
-  resolveId(this: { environment?: { name?: string } }, source: string) {
-    if (source !== "@solana-mobile/wallet-adapter-mobile") return null;
-    if (this.environment?.name === "client") return null;
-    return solanaMobileSsrStub;
+  enforce: "pre" as const,
+  applyToEnvironment: (env: { name: string }) => env.name !== "client",
+  resolveId(source: string) {
+    if (source === "@solana-mobile/wallet-adapter-mobile") return solanaMobileSsrStub;
+    return null;
   },
 };
 
