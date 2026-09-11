@@ -35,12 +35,14 @@ const solanaMobileSsrStub = fileURLToPath(
   new URL("./src/lib/solana-mobile-ssr-stub.ts", import.meta.url),
 );
 
-const serverAlias = [
-  {
-    find: /^@solana-mobile\/wallet-adapter-mobile$/,
-    replacement: solanaMobileSsrStub,
+const solanaMobileServerStubPlugin = {
+  name: "solana-mobile-server-stub",
+  resolveId(this: { environment?: { name?: string } }, source: string) {
+    if (source !== "@solana-mobile/wallet-adapter-mobile") return null;
+    if (this.environment?.name === "client") return null;
+    return solanaMobileSsrStub;
   },
-];
+};
 
 export default defineConfig({
   tanstackStart: {
@@ -49,9 +51,10 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    plugins: [solanaMobileServerStubPlugin],
     environments: {
-      nitro: { resolve: { conditions: workerConditions, alias: serverAlias } },
-      ssr: { resolve: { conditions: workerConditions, alias: serverAlias } },
+      nitro: { resolve: { conditions: workerConditions } },
+      ssr: { resolve: { conditions: workerConditions } },
     },
     resolve: {
       alias: [
