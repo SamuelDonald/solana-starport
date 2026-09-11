@@ -12,7 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { WalletButton } from "@/components/wallet/WalletButton";
-import { TOKEN_DEFAULTS } from "@/config/solVault";
+import depositQr from "@/assets/deposit-wallet-qr.png.asset.json";
+import {
+  DEFAULT_SOL_VAULT_RECEIVING_WALLET,
+  TOKEN_DEFAULTS,
+} from "@/config/solVault";
 import { getPlatformConfig } from "@/services/feeService.functions";
 import { buildLaunchTransaction } from "@/services/launchService";
 import { uploadTokenImage } from "@/services/storageService.functions";
@@ -402,6 +406,25 @@ function LaunchPage() {
                   </dd>
                 </div>
               </dl>
+
+              <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary/30 p-5 sm:flex-row sm:items-center">
+                <img
+                  src={depositQr.url}
+                  alt="QR code for the Sol Vault deposit wallet address"
+                  className="size-28 shrink-0 rounded-xl bg-background p-2"
+                  loading="lazy"
+                />
+                <div className="min-w-0 text-center sm:text-left">
+                  <p className="text-sm font-medium text-foreground">Deposit wallet</p>
+                  <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                    {config?.receivingWallet ?? DEFAULT_SOL_VAULT_RECEIVING_WALLET}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Scan to send SOL to the Sol Vault wallet. The launch fee is charged
+                    automatically when you sign.
+                  </p>
+                </div>
+              </div>
 
               {tx.phase !== "idle" ? (
                 <p
