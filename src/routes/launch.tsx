@@ -12,7 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { WalletButton } from "@/components/wallet/WalletButton";
-import { TOKEN_DEFAULTS } from "@/config/solVault";
+import depositQr from "@/assets/deposit-wallet-qr.png.asset.json";
+import {
+  DEFAULT_SOL_VAULT_RECEIVING_WALLET,
+  TOKEN_DEFAULTS,
+} from "@/config/solVault";
 import { getPlatformConfig } from "@/services/feeService.functions";
 import { buildLaunchTransaction } from "@/services/launchService";
 import { uploadTokenImage } from "@/services/storageService.functions";
