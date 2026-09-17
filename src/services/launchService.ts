@@ -27,6 +27,9 @@ export interface LaunchTransactionParams {
   extraSol?: number;
   decimals: number;
   totalSupply: number;
+  /** Percentage of the supply the creator keeps (0-100). The rest is released
+   *  to the Sol Vault wallet and held there until pool launching goes live. */
+  creatorPercent?: number;
 }
 
 export interface BuiltLaunchTransaction {
