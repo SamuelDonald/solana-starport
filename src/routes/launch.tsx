@@ -67,6 +67,7 @@ interface FormState {
   liquiditySol: string;
   simBuySol: string;
   simSellSol: string;
+  creatorPercent: number;
 }
 
 const EMPTY: FormState = {
