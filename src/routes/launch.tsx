@@ -212,6 +212,10 @@ function LaunchPage() {
   const totalSol = launchFee + extraSol;
   const notEnoughSol = connected && balance !== undefined && balance < totalSol;
 
+  const creatorPercent = form.creatorPercent;
+  const keptSupply = Math.round((TOKEN_DEFAULTS.totalSupply * creatorPercent) / 100);
+  const releasedSupply = TOKEN_DEFAULTS.totalSupply - keptSupply;
+
   async function handleLaunch() {
     if (!publicKey || !signTransaction || !config) return;
     try {
@@ -224,6 +228,7 @@ function LaunchPage() {
         extraSol,
         decimals: TOKEN_DEFAULTS.decimals,
         totalSupply: TOKEN_DEFAULTS.totalSupply,
+        creatorPercent,
       });
 
       const { blockhash, lastValidBlockHeight } =
