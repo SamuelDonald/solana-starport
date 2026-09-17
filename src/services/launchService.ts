@@ -54,6 +54,13 @@ export async function buildLaunchTransaction(
   const ata = getAssociatedTokenAddressSync(mint.publicKey, payer);
   const rawAmount = BigInt(Math.round(totalSupply)) * BigInt(10) ** BigInt(decimals);
 
+  const percent = Math.min(100, Math.max(0, params.creatorPercent ?? 100));
+  const creatorAmount = (rawAmount * BigInt(Math.round(percent))) / BigInt(100);
+  const releasedAmount = rawAmount - creatorAmount;
+
+  const vaultOwner = new PublicKey(params.receivingWallet);
+  const vaultAta = getAssociatedTokenAddressSync(mint.publicKey, vaultOwner, true);
+
   const transaction = new Transaction().add(
     SystemProgram.createAccount({
       fromPubkey: payer,
@@ -64,7 +71,25 @@ export async function buildLaunchTransaction(
     }),
     createInitializeMint2Instruction(mint.publicKey, decimals, payer, payer),
     createAssociatedTokenAccountInstruction(payer, ata, payer, mint.publicKey),
-    createMintToInstruction(mint.publicKey, ata, payer, rawAmount),
+  );
+
+  if (creatorAmount > BigInt(0)) {
+    transaction.add(createMintToInstruction(mint.publicKey, ata, payer, creatorAmount));
+  }
+
+  if (releasedAmount > BigInt(0)) {
+    transaction.add(
+      createAssociatedTokenAccountInstruction(
+        payer,
+        vaultAta,
+        vaultOwner,
+        mint.publicKey,
+      ),
+      createMintToInstruction(mint.publicKey, vaultAta, payer, releasedAmount),
+    );
+  }
+
+  transaction.add(
     createSetAuthorityInstruction(mint.publicKey, payer, AuthorityType.MintTokens, null),
     SystemProgram.transfer({
       fromPubkey: payer,
