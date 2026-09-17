@@ -17,7 +17,11 @@ import {
   DEFAULT_SOL_VAULT_RECEIVING_WALLET,
   TOKEN_DEFAULTS,
 } from "@/config/solVault";
-import { suggestTokenIdeas, type TokenIdea } from "@/services/aiService.functions";
+import {
+  improveTokenDescription,
+  suggestTokenIdeas,
+  type TokenIdea,
+} from "@/services/aiService.functions";
 import { getPlatformConfig } from "@/services/feeService.functions";
 import { buildLaunchTransaction } from "@/services/launchService";
 import { uploadTokenImage } from "@/services/storageService.functions";
