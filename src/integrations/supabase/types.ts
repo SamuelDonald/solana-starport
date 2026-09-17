@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      deposits: {
+        Row: {
+          created_at: string
+          destination_wallet: string
+          id: string
+          sol_amount: number
+          status: string
+          transaction_signature: string
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          destination_wallet: string
+          id?: string
+          sol_amount: number
+          status?: string
+          transaction_signature: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          destination_wallet?: string
+          id?: string
+          sol_amount?: number
+          status?: string
+          transaction_signature?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
       tokens: {
         Row: {
           created_at: string

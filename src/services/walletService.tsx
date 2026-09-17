@@ -1,4 +1,5 @@
-import { Buffer } from "buffer";
+import "@/lib/buffer-polyfill";
+
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import {
   ConnectionProvider,
@@ -14,10 +15,6 @@ import { useMemo, type ReactNode } from "react";
 
 import { defaultRpcUrl, type SolanaNetwork } from "@/config/solVault";
 
-// Solana libraries expect a global Buffer in the browser.
-if (typeof globalThis.Buffer === "undefined") {
-  (globalThis as unknown as { Buffer: typeof Buffer }).Buffer = Buffer;
-}
 
 export const CLIENT_NETWORK: SolanaNetwork =
   (import.meta.env["VITE_SOL_VAULT_NETWORK"] as SolanaNetwork | undefined) ?? "devnet";

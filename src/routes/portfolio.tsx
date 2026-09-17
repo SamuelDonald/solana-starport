@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WalletButton } from "@/components/wallet/WalletButton";
 import { listTokensByCreator } from "@/services/tokenService";
-import { listWalletActivity } from "@/services/transactionService";
+import { listWalletActivity } from "@/services/transactionService.functions";
 import {
   truncateAddress,
   useSolBalance,
@@ -53,7 +53,7 @@ function PortfolioPage() {
   const activity = useQuery({
     queryKey: ["activity", wallet],
     enabled: !!wallet,
-    queryFn: () => listWalletActivity(wallet!),
+    queryFn: () => listWalletActivity({ data: { wallet: wallet! } }),
   });
 
   if (!connected || !wallet) {
