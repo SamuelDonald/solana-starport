@@ -2,7 +2,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Loader2, Rocket, Sparkles, Upload } from "lucide-react";
+import { Check, Copy, Loader2, Rocket, Sparkles, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -10,7 +10,15 @@ import { AppLayout, PageHeading } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { WalletButton } from "@/components/wallet/WalletButton";
 import depositQr from "@/assets/deposit-wallet-qr.png.asset.json";
 import {
@@ -67,6 +75,7 @@ interface FormState {
   liquiditySol: string;
   simBuySol: string;
   simSellSol: string;
+  creatorPercent: number;
 }
 
 const EMPTY: FormState = {
@@ -81,6 +90,7 @@ const EMPTY: FormState = {
   liquiditySol: "",
   simBuySol: "",
   simSellSol: "",
+  creatorPercent: 100,
 };
 
 const STEPS = ["Basics", "Branding", "Socials", "Funding", "Review"] as const;
@@ -194,8 +204,9 @@ function LaunchPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const set = (key: keyof FormState) => (value: string) =>
-    setForm((f) => ({ ...f, [key]: value }));
+  const set =
+    (key: Exclude<keyof FormState, "creatorPercent">) => (value: string) =>
+      setForm((f) => ({ ...f, [key]: value }));
 
   const basicsValid = form.name.trim().length > 1 && form.symbol.trim().length > 0;
 
@@ -209,6 +220,10 @@ function LaunchPage() {
   const totalSol = launchFee + extraSol;
   const notEnoughSol = connected && balance !== undefined && balance < totalSol;
 
+  const creatorPercent = form.creatorPercent;
+  const keptSupply = Math.round((TOKEN_DEFAULTS.totalSupply * creatorPercent) / 100);
+  const releasedSupply = TOKEN_DEFAULTS.totalSupply - keptSupply;
+
   async function handleLaunch() {
     if (!publicKey || !signTransaction || !config) return;
     try {
@@ -221,6 +236,7 @@ function LaunchPage() {
         extraSol,
         decimals: TOKEN_DEFAULTS.decimals,
         totalSupply: TOKEN_DEFAULTS.totalSupply,
+        creatorPercent,
       });
 
       const { blockhash, lastValidBlockHeight } =
