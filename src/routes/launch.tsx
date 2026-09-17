@@ -2,7 +2,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Loader2, Rocket, Sparkles, Upload } from "lucide-react";
+import { Check, Copy, Loader2, Rocket, Sparkles, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -19,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Copy } from "lucide-react";
 import { WalletButton } from "@/components/wallet/WalletButton";
 import depositQr from "@/assets/deposit-wallet-qr.png.asset.json";
 import {
