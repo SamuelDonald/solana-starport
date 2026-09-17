@@ -153,6 +153,7 @@ function LaunchPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [aiPrompt, setAiPrompt] = useState("");
+  const [payOpen, setPayOpen] = useState(false);
 
   const upload = useServerFn(uploadTokenImage);
   const register = useServerFn(registerTokenLaunch);
@@ -567,6 +568,44 @@ function LaunchPage() {
                   </div>
                 </div>
               ))}
+
+              <div className="rounded-2xl bg-secondary/30 p-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="creator-percent">Supply you keep</Label>
+                  <span className="text-sm font-medium text-foreground">
+                    {creatorPercent}%
+                  </span>
+                </div>
+                <Slider
+                  id="creator-percent"
+                  className="mt-4"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={[creatorPercent]}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, creatorPercent: v[0] ?? 100 }))
+                  }
+                />
+                <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl bg-background/50 p-3">
+                    <p className="text-muted-foreground">You keep</p>
+                    <p className="mt-1 text-sm text-foreground">
+                      {keptSupply.toLocaleString()} {form.symbol || "tokens"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-background/50 p-3">
+                    <p className="text-muted-foreground">You let go</p>
+                    <p className="mt-1 text-sm text-foreground">
+                      {releasedSupply.toLocaleString()} {form.symbol || "tokens"}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  The share you let go is held in the Sol Vault wallet until pool
+                  launching goes live.
+                </p>
+              </div>
 
               <div className="rounded-2xl bg-secondary/30 p-4 text-sm">
                 <div className="flex justify-between">
