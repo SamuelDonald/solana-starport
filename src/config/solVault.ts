@@ -13,15 +13,25 @@ export const DEFAULT_SOL_VAULT_RECEIVING_WALLET =
   "DXVdPZ4SKvtbX7DxRgCB7n9Wh9Te1LrJqfnsSwMs8J9W";
 
 /** Launch fee in SOL. */
-export const DEFAULT_SOL_VAULT_LAUNCH_FEE = 0.05;
+export const DEFAULT_SOL_VAULT_LAUNCH_FEE = 1;
+
+/** Flat network fee added on top of the launch fee. */
+export const DEFAULT_SOL_VAULT_NETWORK_FEE = 0.05;
 
 export const DEFAULT_SOLANA_NETWORK = "devnet" as const;
+
+/**
+ * Network name shown to visitors. Presentation only — the actual cluster used
+ * for RPC and explorer links still comes from the network config above.
+ */
+export const NETWORK_DISPLAY_LABEL = "Mainnet";
 
 export type SolanaNetwork = "devnet" | "mainnet-beta" | "testnet";
 
 export interface PlatformConfig {
   receivingWallet: string;
   launchFeeSol: number;
+  networkFeeSol: number;
   network: SolanaNetwork;
   rpcUrl: string;
 }

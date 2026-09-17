@@ -15,6 +15,9 @@ const launchInput = z.object({
   discordUrl: z.string().url().max(300).optional().nullable(),
   totalSupply: z.number().positive().max(1e15),
   decimals: z.number().int().min(0).max(9),
+  liquiditySol: z.number().min(0).max(1e6).optional().default(0),
+  simBuySol: z.number().min(0).max(1e6).optional().default(0),
+  simSellSol: z.number().min(0).max(1e6).optional().default(0),
 });
 
 export type RegisterLaunchInput = z.infer<typeof launchInput>;
@@ -31,6 +34,9 @@ export const registerTokenLaunch = createServerFn({ method: "POST" })
       signature: data.signature,
       payerWallet: data.creatorWallet,
       mintAddress: data.mintAddress,
+      liquiditySol: data.liquiditySol,
+      simBuySol: data.simBuySol,
+      simSellSol: data.simSellSol,
     });
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -64,7 +70,18 @@ export const registerTokenLaunch = createServerFn({ method: "POST" })
 
     if (error) throw new Error(error.message);
 
-    await supabaseAdmin.from("transactions").insert([
+    const { readPlatformConfig } = await import("./feeService.functions");
+    const { launchFeeSol, networkFeeSol } = readPlatformConfig();
+
+    const rows: Array<{
+      wallet_address: string;
+      token_id: string;
+      transaction_signature: string;
+      type: string;
+      amount?: number | null;
+      sol_amount: number;
+      status: string;
+    }> = [
       {
         wallet_address: data.creatorWallet,
         token_id: token.id,
@@ -79,10 +96,38 @@ export const registerTokenLaunch = createServerFn({ method: "POST" })
         token_id: token.id,
         transaction_signature: data.signature,
         type: "PLATFORM_FEE",
-        sol_amount: verified.feePaidSol,
+        sol_amount: launchFeeSol,
         status: "CONFIRMED",
       },
-    ]);
+      {
+        wallet_address: data.creatorWallet,
+        token_id: token.id,
+        transaction_signature: data.signature,
+        type: "NETWORK_FEE",
+        sol_amount: networkFeeSol,
+        status: "CONFIRMED",
+      },
+    ];
+
+    const extras: Array<[string, number]> = [
+      ["LIQUIDITY", data.liquiditySol],
+      ["SIM_BUY", data.simBuySol],
+      ["SIM_SELL", data.simSellSol],
+    ];
+    for (const [type, sol] of extras) {
+      if (sol > 0) {
+        rows.push({
+          wallet_address: data.creatorWallet,
+          token_id: token.id,
+          transaction_signature: data.signature,
+          type,
+          sol_amount: sol,
+          status: "CONFIRMED",
+        });
+      }
+    }
+
+    await supabaseAdmin.from("transactions").insert(rows);
 
     return { token, feePaidSol: verified.feePaidSol };
   });

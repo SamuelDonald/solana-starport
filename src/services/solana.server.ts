@@ -46,8 +46,18 @@ export async function verifyLaunchTransaction(params: {
   signature: string;
   payerWallet: string;
   mintAddress: string;
+  liquiditySol?: number;
+  simBuySol?: number;
+  simSellSol?: number;
 }): Promise<VerifiedLaunch> {
-  const { receivingWallet, launchFeeSol } = readPlatformConfig();
+  const { receivingWallet, launchFeeSol, networkFeeSol } = readPlatformConfig();
+  // The server recomputes the expected total; the client total is never trusted.
+  const expectedTotalSol =
+    launchFeeSol +
+    networkFeeSol +
+    Math.max(0, params.liquiditySol ?? 0) +
+    Math.max(0, params.simBuySol ?? 0) +
+    Math.max(0, params.simSellSol ?? 0);
 
   let tx: RpcTransaction | null = null;
   for (let attempt = 0; attempt < 8 && !tx; attempt++) {
@@ -77,8 +87,8 @@ export async function verifyLaunchTransaction(params: {
     (tx.meta.postBalances[feeIndex] ?? 0) - (tx.meta.preBalances[feeIndex] ?? 0);
   const feePaidSol = delta / LAMPORTS_PER_SOL;
   // small tolerance for rounding
-  if (feePaidSol + 1e-9 < launchFeeSol) {
-    throw new Error("Platform fee amount is insufficient");
+  if (feePaidSol + 1e-9 < expectedTotalSol) {
+    throw new Error("Payment amount is insufficient");
   }
 
   const mintInfo = await rpc<{ value: unknown }>("getAccountInfo", [

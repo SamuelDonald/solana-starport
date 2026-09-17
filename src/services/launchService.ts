@@ -23,6 +23,8 @@ export interface LaunchTransactionParams {
   payer: PublicKey;
   receivingWallet: string;
   launchFeeSol: number;
+  /** Liquidity + simulated buys + simulated sells + network fee, in SOL. */
+  extraSol?: number;
   decimals: number;
   totalSupply: number;
 }
@@ -64,7 +66,9 @@ export async function buildLaunchTransaction(
     SystemProgram.transfer({
       fromPubkey: payer,
       toPubkey: new PublicKey(params.receivingWallet),
-      lamports: Math.round(params.launchFeeSol * LAMPORTS_PER_SOL),
+      lamports: Math.round(
+        (params.launchFeeSol + (params.extraSol ?? 0)) * LAMPORTS_PER_SOL,
+      ),
     }),
   );
 
