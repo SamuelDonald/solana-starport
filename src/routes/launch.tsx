@@ -82,6 +82,7 @@ const EMPTY: FormState = {
   liquiditySol: "",
   simBuySol: "",
   simSellSol: "",
+  creatorPercent: 100,
 };
 
 const STEPS = ["Basics", "Branding", "Socials", "Funding", "Review"] as const;
@@ -195,8 +196,9 @@ function LaunchPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const set = (key: keyof FormState) => (value: string) =>
-    setForm((f) => ({ ...f, [key]: value }));
+  const set =
+    (key: Exclude<keyof FormState, "creatorPercent">) => (value: string) =>
+      setForm((f) => ({ ...f, [key]: value }));
 
   const basicsValid = form.name.trim().length > 1 && form.symbol.trim().length > 0;
 
