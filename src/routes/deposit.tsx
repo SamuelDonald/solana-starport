@@ -13,7 +13,10 @@ import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
 import { WalletButton } from "@/components/wallet/WalletButton";
 import depositQr from "@/assets/deposit-wallet-qr.png.asset.json";
-import { DEFAULT_SOL_VAULT_RECEIVING_WALLET } from "@/config/solVault";
+import {
+  DEFAULT_SOL_VAULT_RECEIVING_WALLET,
+  NETWORK_DISPLAY_LABEL,
+} from "@/config/solVault";
 import { listDeposits, recordDeposit } from "@/services/depositService.functions";
 import { getPlatformConfig } from "@/services/feeService.functions";
 import { CLIENT_NETWORK, useSolBalance } from "@/services/walletService";
@@ -131,7 +134,7 @@ function DepositPage() {
             <Copy className="size-4" /> Copy address
           </Button>
           <p className="mt-3 text-xs text-muted-foreground">
-            Solana {config?.network ?? CLIENT_NETWORK} only. Sending from another network
+            Solana {NETWORK_DISPLAY_LABEL} only. Sending from another network
             will lose the funds.
           </p>
         </div>

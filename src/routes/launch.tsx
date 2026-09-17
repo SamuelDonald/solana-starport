@@ -15,6 +15,7 @@ import { WalletButton } from "@/components/wallet/WalletButton";
 import depositQr from "@/assets/deposit-wallet-qr.png.asset.json";
 import {
   DEFAULT_SOL_VAULT_RECEIVING_WALLET,
+  NETWORK_DISPLAY_LABEL,
   TOKEN_DEFAULTS,
 } from "@/config/solVault";
 import {
@@ -27,7 +28,11 @@ import { buildLaunchTransaction } from "@/services/launchService";
 import { uploadTokenImage } from "@/services/storageService.functions";
 import { registerTokenLaunch } from "@/services/tokenService.functions";
 import { TX_STATE_LABEL, type TxState } from "@/services/transactionService";
-import { CLIENT_NETWORK, truncateAddress } from "@/services/walletService";
+import {
+  CLIENT_NETWORK,
+  truncateAddress,
+  useSolBalance,
+} from "@/services/walletService";
 
 export const Route = createFileRoute("/launch")({
   head: () => ({
@@ -59,6 +64,9 @@ interface FormState {
   twitterUrl: string;
   telegramUrl: string;
   discordUrl: string;
+  liquiditySol: string;
+  simBuySol: string;
+  simSellSol: string;
 }
 
 const EMPTY: FormState = {
@@ -70,9 +78,23 @@ const EMPTY: FormState = {
   twitterUrl: "",
   telegramUrl: "",
   discordUrl: "",
+  liquiditySol: "",
+  simBuySol: "",
+  simSellSol: "",
 };
 
-const STEPS = ["Basics", "Branding", "Socials", "Review"] as const;
+const STEPS = ["Basics", "Branding", "Socials", "Funding", "Review"] as const;
+
+const QUICK_AMOUNTS = [0.1, 0.5, 1, 5];
+
+function parseSol(value: string): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function formatSol(value: number): string {
+  return `${value.toFixed(2)} SOL`;
+}
 
 function Stepper({ step }: { step: number }) {
   return (
@@ -177,6 +199,16 @@ function LaunchPage() {
 
   const basicsValid = form.name.trim().length > 1 && form.symbol.trim().length > 0;
 
+  const { data: balance } = useSolBalance();
+  const liquidity = parseSol(form.liquiditySol);
+  const simBuy = parseSol(form.simBuySol);
+  const simSell = parseSol(form.simSellSol);
+  const launchFee = config?.launchFeeSol ?? 0;
+  const networkFee = config?.networkFeeSol ?? 0;
+  const extraSol = liquidity + simBuy + simSell + networkFee;
+  const totalSol = launchFee + extraSol;
+  const notEnoughSol = connected && balance !== undefined && balance < totalSol;
+
   async function handleLaunch() {
     if (!publicKey || !signTransaction || !config) return;
     try {
@@ -186,6 +218,7 @@ function LaunchPage() {
         payer: publicKey,
         receivingWallet: config.receivingWallet,
         launchFeeSol: config.launchFeeSol,
+        extraSol,
         decimals: TOKEN_DEFAULTS.decimals,
         totalSupply: TOKEN_DEFAULTS.totalSupply,
       });
@@ -221,6 +254,9 @@ function LaunchPage() {
           discordUrl: form.discordUrl || null,
           totalSupply: TOKEN_DEFAULTS.totalSupply,
           decimals: TOKEN_DEFAULTS.decimals,
+          liquiditySol: liquidity,
+          simBuySol: simBuy,
+          simSellSol: simSell,
         },
       });
 
@@ -243,7 +279,7 @@ function LaunchPage() {
             {form.symbol.toUpperCase()} is live
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your token was created on Solana {CLIENT_NETWORK}.
+            Your token was created on Solana {NETWORK_DISPLAY_LABEL}.
           </p>
           <p className="mt-4 break-all font-mono text-xs text-muted-foreground">
             {launched.mint}
@@ -474,6 +510,65 @@ function LaunchPage() {
 
           {step === 3 ? (
             <div className="space-y-5">
+              <p className="text-sm text-muted-foreground">
+                Choose how much SOL to put behind your launch. Leave any of these blank
+                to skip them.
+              </p>
+
+              {(
+                [
+                  ["liquiditySol", "Liquidity", "SOL set aside for your coin's pool"],
+                  ["simBuySol", "Simulated buys", "SOL used for buy activity"],
+                  ["simSellSol", "Simulated sells", "SOL used for sell activity"],
+                ] as const
+              ).map(([key, label, hint]) => (
+                <div key={key}>
+                  <Label htmlFor={key}>{label} (optional)</Label>
+                  <Input
+                    id={key}
+                    inputMode="decimal"
+                    value={form[key]}
+                    placeholder="0.00"
+                    onChange={(e) =>
+                      set(key)(e.target.value.replace(/[^0-9.]/g, "").slice(0, 12))
+                    }
+                  />
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {QUICK_AMOUNTS.map((amount) => (
+                      <Button
+                        key={amount}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => set(key)(String(amount))}
+                      >
+                        {amount} SOL
+                      </Button>
+                    ))}
+                    <span className="text-xs text-muted-foreground">{hint}</span>
+                  </div>
+                </div>
+              ))}
+
+              <div className="rounded-2xl bg-secondary/30 p-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Running total</span>
+                  <span className="font-medium text-foreground">
+                    {formatSol(totalSol)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Includes the {formatSol(launchFee)} launch fee and the{" "}
+                  {formatSol(networkFee)} network fee. Liquidity and simulated activity
+                  are held in the Sol Vault wallet for now and applied when pool
+                  launching goes live.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {step === 4 ? (
+            <div className="space-y-5">
               <div className="flex items-center gap-4">
                 {form.imageUrl ? (
                   <img
@@ -497,11 +592,39 @@ function LaunchPage() {
               <dl className="divide-y divide-border/50 rounded-2xl bg-secondary/30 px-5 text-sm">
                 <div className="flex justify-between py-3">
                   <dt className="text-muted-foreground">Network</dt>
-                  <dd>{config?.network ?? CLIENT_NETWORK}</dd>
+                  <dd>{NETWORK_DISPLAY_LABEL}</dd>
                 </div>
                 <div className="flex justify-between py-3">
                   <dt className="text-muted-foreground">Launch fee</dt>
-                  <dd>{config ? `${config.launchFeeSol} SOL` : "…"}</dd>
+                  <dd>{config ? formatSol(launchFee) : "…"}</dd>
+                </div>
+                {liquidity > 0 ? (
+                  <div className="flex justify-between py-3">
+                    <dt className="text-muted-foreground">Liquidity</dt>
+                    <dd>{formatSol(liquidity)}</dd>
+                  </div>
+                ) : null}
+                {simBuy > 0 ? (
+                  <div className="flex justify-between py-3">
+                    <dt className="text-muted-foreground">Simulated buys</dt>
+                    <dd>{formatSol(simBuy)}</dd>
+                  </div>
+                ) : null}
+                {simSell > 0 ? (
+                  <div className="flex justify-between py-3">
+                    <dt className="text-muted-foreground">Simulated sells</dt>
+                    <dd>{formatSol(simSell)}</dd>
+                  </div>
+                ) : null}
+                <div className="flex justify-between py-3">
+                  <dt className="text-muted-foreground">Network fee</dt>
+                  <dd>{config ? formatSol(networkFee) : "…"}</dd>
+                </div>
+                <div className="flex justify-between py-3">
+                  <dt className="font-medium text-foreground">Total</dt>
+                  <dd className="font-medium text-foreground">
+                    {config ? formatSol(totalSol) : "…"}
+                  </dd>
                 </div>
                 <div className="flex justify-between py-3">
                   <dt className="text-muted-foreground">Paying wallet</dt>
@@ -524,8 +647,8 @@ function LaunchPage() {
                     {config?.receivingWallet ?? DEFAULT_SOL_VAULT_RECEIVING_WALLET}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Scan to send SOL to the Sol Vault wallet. The launch fee is charged
-                    automatically when you sign.
+                    Scan to send SOL to the Sol Vault wallet. The full total is charged
+                    in one payment when you sign.
                   </p>
                 </div>
               </div>
@@ -553,6 +676,13 @@ function LaunchPage() {
                   <WalletButton />
                 </div>
               ) : null}
+
+              {notEnoughSol ? (
+                <p className="rounded-xl bg-destructive/15 px-4 py-3 text-sm text-destructive">
+                  Not enough SOL — you need {formatSol(totalSol)} plus a little for
+                  network costs.
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -564,7 +694,7 @@ function LaunchPage() {
             >
               Back
             </Button>
-            {step < 3 ? (
+            {step < 4 ? (
               <Button
                 disabled={step === 0 && !basicsValid}
                 onClick={() => setStep((s) => s + 1)}
@@ -577,6 +707,7 @@ function LaunchPage() {
                   !connected ||
                   !basicsValid ||
                   !config ||
+                  notEnoughSol ||
                   (tx.phase !== "idle" && tx.phase !== "error")
                 }
                 onClick={() => void handleLaunch()}
