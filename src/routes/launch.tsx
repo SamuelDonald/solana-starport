@@ -2,7 +2,7 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Loader2, Rocket, Upload } from "lucide-react";
+import { Check, Loader2, Rocket, Sparkles, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ import {
   DEFAULT_SOL_VAULT_RECEIVING_WALLET,
   TOKEN_DEFAULTS,
 } from "@/config/solVault";
+import { suggestTokenIdeas, type TokenIdea } from "@/services/aiService.functions";
 import { getPlatformConfig } from "@/services/feeService.functions";
 import { buildLaunchTransaction } from "@/services/launchService";
 import { uploadTokenImage } from "@/services/storageService.functions";
@@ -113,9 +114,17 @@ function LaunchPage() {
   );
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [aiPrompt, setAiPrompt] = useState("");
+
   const upload = useServerFn(uploadTokenImage);
   const register = useServerFn(registerTokenLaunch);
   const platformConfig = useServerFn(getPlatformConfig);
+  const suggest = useServerFn(suggestTokenIdeas);
+
+  const ideas = useMutation<TokenIdea[], Error, string>({
+    mutationFn: (prompt: string) => suggest({ data: { prompt } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: config } = useQuery({
     queryKey: ["platform-config"],
@@ -255,6 +264,64 @@ function LaunchPage() {
         <div className="glass rounded-3xl p-6 sm:p-8">
           {step === 0 ? (
             <div className="space-y-5">
+              <div className="rounded-2xl bg-secondary/30 p-4">
+                <Label htmlFor="ai-prompt" className="flex items-center gap-2">
+                  <Sparkles className="size-4 text-accent" /> Need ideas? Describe your
+                  vibe
+                </Label>
+                <div className="mt-2 flex gap-2">
+                  <Input
+                    id="ai-prompt"
+                    value={aiPrompt}
+                    maxLength={300}
+                    placeholder="space dog coin, funny, for gamers"
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={ideas.isPending || aiPrompt.trim().length < 2}
+                    onClick={() => ideas.mutate(aiPrompt.trim())}
+                  >
+                    {ideas.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-4" />
+                    )}
+                    Suggest
+                  </Button>
+                </div>
+                {ideas.data && ideas.data.length > 0 ? (
+                  <ul className="mt-3 space-y-2">
+                    {ideas.data.map((idea) => (
+                      <li key={`${idea.name}-${idea.symbol}`}>
+                        <button
+                          type="button"
+                          className="w-full rounded-xl bg-background/50 px-4 py-3 text-left ring-1 ring-border/60 transition-colors hover:bg-background"
+                          onClick={() => {
+                            setForm((f) => ({
+                              ...f,
+                              name: idea.name,
+                              symbol: idea.symbol,
+                              description: idea.description,
+                            }));
+                            toast.success("Idea applied — edit anything you like");
+                          }}
+                        >
+                          <span className="text-sm text-foreground">
+                            {idea.name}{" "}
+                            <span className="text-accent">${idea.symbol}</span>
+                          </span>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {idea.description}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+
               <div>
                 <Label htmlFor="name">Token name</Label>
                 <Input

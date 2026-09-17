@@ -1,11 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { Compass, Home, Rocket, Wallet as WalletIcon } from "lucide-react";
+import {
+  Compass,
+  Home,
+  PiggyBank,
+  Rocket,
+  Wallet as WalletIcon,
+} from "lucide-react";
 
 import { WalletButton } from "@/components/wallet/WalletButton";
 
 const NAV = [
   { to: "/explore", label: "Explore", icon: Compass },
   { to: "/launch", label: "Launch", icon: Rocket },
+  { to: "/deposit", label: "Deposit", icon: PiggyBank },
   { to: "/portfolio", label: "Portfolio", icon: WalletIcon },
 ] as const;
 
