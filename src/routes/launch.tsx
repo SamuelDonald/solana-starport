@@ -1,3 +1,5 @@
+import "@/lib/buffer-polyfill";
+
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -151,6 +153,7 @@ function LaunchPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [aiPrompt, setAiPrompt] = useState("");
+  const [payOpen, setPayOpen] = useState(false);
 
   const upload = useServerFn(uploadTokenImage);
   const register = useServerFn(registerTokenLaunch);
@@ -566,6 +569,44 @@ function LaunchPage() {
                 </div>
               ))}
 
+              <div className="rounded-2xl bg-secondary/30 p-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="creator-percent">Supply you keep</Label>
+                  <span className="text-sm font-medium text-foreground">
+                    {creatorPercent}%
+                  </span>
+                </div>
+                <Slider
+                  id="creator-percent"
+                  className="mt-4"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={[creatorPercent]}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, creatorPercent: v[0] ?? 100 }))
+                  }
+                />
+                <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl bg-background/50 p-3">
+                    <p className="text-muted-foreground">You keep</p>
+                    <p className="mt-1 text-sm text-foreground">
+                      {keptSupply.toLocaleString()} {form.symbol || "tokens"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-background/50 p-3">
+                    <p className="text-muted-foreground">You let go</p>
+                    <p className="mt-1 text-sm text-foreground">
+                      {releasedSupply.toLocaleString()} {form.symbol || "tokens"}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  The share you let go is held in the Sol Vault wallet until pool
+                  launching goes live.
+                </p>
+              </div>
+
               <div className="rounded-2xl bg-secondary/30 p-4 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Running total</span>
@@ -650,22 +691,18 @@ function LaunchPage() {
                 </div>
               </dl>
 
-              <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary/30 p-5 sm:flex-row sm:items-center">
-                <img
-                  src={depositQr.url}
-                  alt="QR code for the Sol Vault deposit wallet address"
-                  className="size-28 shrink-0 rounded-xl bg-background p-2"
-                  loading="lazy"
-                />
-                <div className="min-w-0 text-center sm:text-left">
-                  <p className="text-sm font-medium text-foreground">Deposit wallet</p>
-                  <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                    {config?.receivingWallet ?? DEFAULT_SOL_VAULT_RECEIVING_WALLET}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Scan to send SOL to the Sol Vault wallet. The full total is charged
-                    in one payment when you sign.
-                  </p>
+              <div className="rounded-2xl bg-secondary/30 p-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Supply you keep</span>
+                  <span className="text-foreground">
+                    {creatorPercent}% · {keptSupply.toLocaleString()}
+                  </span>
+                </div>
+                <div className="mt-2 flex justify-between">
+                  <span className="text-muted-foreground">Supply you let go</span>
+                  <span className="text-foreground">
+                    {100 - creatorPercent}% · {releasedSupply.toLocaleString()}
+                  </span>
                 </div>
               </div>
 
@@ -726,15 +763,80 @@ function LaunchPage() {
                   notEnoughSol ||
                   (tx.phase !== "idle" && tx.phase !== "error")
                 }
-                onClick={() => void handleLaunch()}
+                onClick={() => setPayOpen(true)}
               >
                 <Rocket className="size-4" />
-                Launch token
+                Pay &amp; launch
               </Button>
             )}
           </div>
         </div>
       </div>
+
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pay {formatSol(totalSol)}</DialogTitle>
+            <DialogDescription>
+              Send the total to the Sol Vault wallet. Confirm below to pay and launch
+              straight from your connected wallet, or scan the code to send it yourself.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src={depositQr.url}
+              alt="QR code for the Sol Vault deposit wallet address"
+              className="size-40 rounded-xl bg-background p-2"
+            />
+            <p className="break-all text-center font-mono text-xs text-muted-foreground">
+              {config?.receivingWallet ?? DEFAULT_SOL_VAULT_RECEIVING_WALLET}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void navigator.clipboard.writeText(
+                  config?.receivingWallet ?? DEFAULT_SOL_VAULT_RECEIVING_WALLET,
+                );
+                toast.success("Address copied");
+              }}
+            >
+              <Copy className="size-4" />
+              Copy address
+            </Button>
+          </div>
+
+          {tx.phase !== "idle" ? (
+            <p
+              className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
+                tx.phase === "error"
+                  ? "bg-destructive/15 text-destructive"
+                  : "bg-primary/10 text-foreground"
+              }`}
+            >
+              {tx.phase !== "error" && tx.phase !== "success" ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
+              {tx.phase === "error" ? tx.message : TX_STATE_LABEL[tx.phase]}
+            </p>
+          ) : null}
+
+          <Button
+            disabled={
+              !connected ||
+              !config ||
+              notEnoughSol ||
+              (tx.phase !== "idle" && tx.phase !== "error")
+            }
+            onClick={() => void handleLaunch()}
+          >
+            <Rocket className="size-4" />
+            Confirm &amp; pay {formatSol(totalSol)}
+          </Button>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
