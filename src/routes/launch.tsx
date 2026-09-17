@@ -121,8 +121,26 @@ function LaunchPage() {
   const platformConfig = useServerFn(getPlatformConfig);
   const suggest = useServerFn(suggestTokenIdeas);
 
+  const rewrite = useServerFn(improveTokenDescription);
+
   const ideas = useMutation<TokenIdea[], Error, string>({
     mutationFn: (prompt: string) => suggest({ data: { prompt } }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const improve = useMutation<string, Error, void>({
+    mutationFn: () =>
+      rewrite({
+        data: {
+          name: form.name.trim(),
+          symbol: form.symbol.trim(),
+          description: form.description.trim(),
+        },
+      }),
+    onSuccess: (description) => {
+      setForm((f) => ({ ...f, description }));
+      toast.success("Description improved");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -352,6 +370,21 @@ function LaunchPage() {
                   placeholder="What is your token about?"
                   onChange={(e) => set("description")(e.target.value)}
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2"
+                  disabled={improve.isPending || form.description.trim().length < 3}
+                  onClick={() => improve.mutate()}
+                >
+                  {improve.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  Improve my description
+                </Button>
               </div>
             </div>
           ) : null}
