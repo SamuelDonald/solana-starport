@@ -35,6 +35,26 @@ const solanaMobileSsrStub = fileURLToPath(
   new URL("./src/lib/solana-mobile-ssr-stub.ts", import.meta.url),
 );
 
+// Solana libraries read `Buffer`/`global` while their modules are still
+// evaluating. Import order across route chunks isn't guaranteed, so every
+// Solana-touching client module gets the polyfill injected ahead of its own
+// code — this is what kept the published build from hydrating.
+const bufferPolyfill = fileURLToPath(
+  new URL("./src/lib/buffer-polyfill.ts", import.meta.url),
+);
+
+const bufferPolyfillPlugin = {
+  name: "inject-buffer-polyfill",
+  enforce: "pre" as const,
+  applyToEnvironment: (env: { name: string }) => env.name === "client",
+  transform(code: string, id: string) {
+    const clean = id.split("?")[0] ?? id;
+    if (clean === bufferPolyfill) return null;
+    if (!/(@solana|bs58|rpc-websockets|buffer-layout|borsh)/.test(clean)) return null;
+    return { code: `import ${JSON.stringify(bufferPolyfill)};\n${code}`, map: null };
+  },
+};
+
 const solanaMobileServerStubPlugin = {
   name: "solana-mobile-server-stub",
   enforce: "pre" as const,
@@ -52,7 +72,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [solanaMobileServerStubPlugin],
+    plugins: [bufferPolyfillPlugin, solanaMobileServerStubPlugin],
     environments: {
       nitro: { resolve: { conditions: workerConditions } },
       ssr: { resolve: { conditions: workerConditions } },

@@ -1,3 +1,5 @@
+import "@/lib/buffer-polyfill";
+
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
