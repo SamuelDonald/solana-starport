@@ -47,14 +47,6 @@ import {
 } from "@/services/walletService";
 
 export const Route = createFileRoute("/launch")({
-  validateSearch: (search: Record<string, unknown>) => {
-    const rawStep = Number(search.step);
-    const step = Number.isInteger(rawStep)
-      ? Math.min(Math.max(rawStep, 0), LAST_STEP)
-      : 0;
-
-    return { step };
-  },
   head: () => ({
     meta: [
       { title: "Launch a Solana Token — Sol Vault" },
@@ -106,7 +98,6 @@ const EMPTY: FormState = {
 };
 
 const STEPS = ["Basics", "Branding", "Socials", "Funding", "Review"] as const;
-const LAST_STEP = STEPS.length - 1;
 
 const QUICK_AMOUNTS = [0.1, 0.5, 1, 5];
 
@@ -155,7 +146,7 @@ function LaunchPage() {
   const navigate = useNavigate();
   const { connection } = useConnection();
   const { publicKey, connected, signTransaction } = useWallet();
-  const { step } = Route.useSearch();
+  const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [tx, setTx] = useState<TxState>({ phase: "idle" });
   const [launched, setLaunched] = useState<{ mint: string; signature: string } | null>(
@@ -225,12 +216,7 @@ function LaunchPage() {
   const basicsValid = form.name.trim().length > 1 && form.symbol.trim().length > 0;
 
   function goToStep(nextStep: number) {
-    void navigate({
-      search: (current) => ({
-        ...current,
-        step: Math.min(Math.max(nextStep, 0), LAST_STEP),
-      }),
-    });
+    setStep(Math.min(Math.max(nextStep, 0), STEPS.length - 1));
   }
 
   function handleContinue() {
@@ -239,7 +225,7 @@ function LaunchPage() {
       return;
     }
 
-    goToStep(step + 1);
+    setStep((current) => Math.min(current + 1, STEPS.length - 1));
   }
 
   const { data: balance } = useSolBalance();
@@ -775,7 +761,7 @@ function LaunchPage() {
             <Button
               variant="ghost"
               disabled={step === 0}
-              onClick={() => goToStep(step - 1)}
+              onClick={() => setStep((current) => Math.max(current - 1, 0))}
             >
               Back
             </Button>
