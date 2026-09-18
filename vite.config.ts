@@ -15,6 +15,11 @@ const rpcWebsocketsBrowser = fileURLToPath(
   new URL("./node_modules/rpc-websockets/dist/index.browser.mjs", import.meta.url),
 );
 
+// Real buffer implementation for bundled Solana browser builds.
+const bufferModule = fileURLToPath(
+  new URL("./node_modules/buffer/index.js", import.meta.url),
+);
+
 // The Solana SDK publishes only "browser" and "node" export conditions. The
 // Cloudflare/workerd server build matches neither, so let those environments
 // fall back to the browser entry points.
@@ -84,6 +89,11 @@ export default defineConfig({
           find: /^rpc-websockets\/dist\/lib\/client\/websocket\.js$/,
           replacement: rpcWebsocketsBrowser,
         },
+        // Solana's bundled browser builds require("buffer"); without this the
+        // production bundle resolves it to an empty module and crashes at
+        // start-up ("Cannot read properties of undefined (reading 'from')").
+        { find: /^buffer$/, replacement: bufferModule },
+        { find: /^node:buffer$/, replacement: bufferModule },
       ],
     },
   },
