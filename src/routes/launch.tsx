@@ -146,7 +146,13 @@ function LaunchPage() {
   const navigate = useNavigate();
   const { connection } = useConnection();
   const { publicKey, connected, signTransaction } = useWallet();
-  const [step, setStep] = useState(0);
+  // Keep the active wizard step in the URL as well as React state. This makes the
+  // step survive any route/component remount during the launch flow.
+  const [step, setStep] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    const value = Number(new URLSearchParams(window.location.search).get("step"));
+    return Number.isInteger(value) ? Math.min(Math.max(value, 0), STEPS.length - 1) : 0;
+  });
   const [form, setForm] = useState<FormState>(EMPTY);
   const [tx, setTx] = useState<TxState>({ phase: "idle" });
   const [launched, setLaunched] = useState<{ mint: string; signature: string } | null>(
@@ -216,7 +222,25 @@ function LaunchPage() {
   const basicsValid = form.name.trim().length > 1 && form.symbol.trim().length > 0;
 
   function goToStep(nextStep: number) {
-    setStep(Math.min(Math.max(nextStep, 0), STEPS.length - 1));
+    const normalizedStep = Math.min(Math.max(nextStep, 0), STEPS.length - 1);
+    setStep(normalizedStep);
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (normalizedStep === 0) {
+        params.delete("step");
+      } else {
+        params.set("step", String(normalizedStep));
+      }
+      const query = params.toString();
+      window.history.replaceState(
+        window.history.state,
+        "",
+        window.location.pathname +
+          (query ? "?" + query : "") +
+          window.location.hash,
+      );
+    }
   }
 
   function handleContinue() {
@@ -225,7 +249,7 @@ function LaunchPage() {
       return;
     }
 
-    setStep((current) => Math.min(current + 1, STEPS.length - 1));
+    goToStep(step + 1);
   }
 
   const { data: balance } = useSolBalance();
@@ -761,7 +785,7 @@ function LaunchPage() {
             <Button
               variant="ghost"
               disabled={step === 0}
-              onClick={() => setStep((current) => Math.max(current - 1, 0))}
+              onClick={() => goToStep(step - 1)}
             >
               Back
             </Button>
