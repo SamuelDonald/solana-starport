@@ -24,6 +24,8 @@ import {
 import { WalletButton } from "@/components/wallet/WalletButton";
 import depositQr from "@/assets/deposit-wallet-qr.png.asset.json";
 import {
+  DEFAULT_SOL_VAULT_LAUNCH_FEE,
+  DEFAULT_SOL_VAULT_NETWORK_FEE,
   DEFAULT_SOL_VAULT_RECEIVING_WALLET,
   NETWORK_DISPLAY_LABEL,
   TOKEN_DEFAULTS,
@@ -213,12 +215,24 @@ function LaunchPage() {
 
   const basicsValid = form.name.trim().length > 1 && form.symbol.trim().length > 0;
 
+  function handleContinue() {
+    if (step === 0 && !basicsValid) {
+      toast.error("Enter a token name and symbol to continue.");
+      return;
+    }
+
+    setStep((current) => Math.min(current + 1, STEPS.length - 1));
+  }
+
   const { data: balance } = useSolBalance();
   const liquidity = parseSol(form.liquiditySol);
   const simBuy = parseSol(form.simBuySol);
   const simSell = parseSol(form.simSellSol);
-  const launchFee = config?.launchFeeSol ?? 0;
-  const networkFee = config?.networkFeeSol ?? 0;
+
+  // Use server configuration when available, but don't block the wizard while
+  // that configuration request is loading.
+  const launchFee = config?.launchFeeSol ?? DEFAULT_SOL_VAULT_LAUNCH_FEE;
+  const networkFee = config?.networkFeeSol ?? DEFAULT_SOL_VAULT_NETWORK_FEE;
   const extraSol = liquidity + simBuy + simSell + networkFee;
   const totalSol = launchFee + extraSol;
   const notEnoughSol = connected && balance !== undefined && balance < totalSol;
@@ -748,19 +762,14 @@ function LaunchPage() {
               Back
             </Button>
             {step < 4 ? (
-              <Button
-                disabled={step === 0 && !basicsValid}
-                onClick={() => setStep((s) => s + 1)}
-              >
+              <Button type="button" onClick={handleContinue}>
                 Continue
               </Button>
             ) : (
               <Button
+                type="button"
                 disabled={
-                  !connected ||
                   !basicsValid ||
-                  !config ||
-                  notEnoughSol ||
                   (tx.phase !== "idle" && tx.phase !== "error")
                 }
                 onClick={() => setPayOpen(true)}
@@ -824,6 +833,7 @@ function LaunchPage() {
           ) : null}
 
           <Button
+            type="button"
             disabled={
               !connected ||
               !config ||
