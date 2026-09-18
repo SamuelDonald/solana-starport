@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Copy, Loader2, Rocket, Sparkles, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AppLayout, PageHeading } from "@/components/layout/AppLayout";
@@ -14,13 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WalletButton } from "@/components/wallet/WalletButton";
 import depositQr from "@/assets/deposit-wallet-qr.png.asset.json";
 import {
@@ -30,21 +24,13 @@ import {
   NETWORK_DISPLAY_LABEL,
   TOKEN_DEFAULTS,
 } from "@/config/solVault";
-import {
-  improveTokenDescription,
-  suggestTokenIdeas,
-  type TokenIdea,
-} from "@/services/aiService.functions";
+import { improveTokenDescription, suggestTokenIdeas, type TokenIdea } from "@/services/aiService.functions";
 import { getPlatformConfig } from "@/services/feeService.functions";
 import { buildLaunchTransaction } from "@/services/launchService";
 import { uploadTokenImage } from "@/services/storageService.functions";
 import { registerTokenLaunch } from "@/services/tokenService.functions";
 import { TX_STATE_LABEL, type TxState } from "@/services/transactionService";
-import {
-  CLIENT_NETWORK,
-  truncateAddress,
-  useSolBalance,
-} from "@/services/walletService";
+import { CLIENT_NETWORK, truncateAddress, useSolBalance } from "@/services/walletService";
 
 export const Route = createFileRoute("/launch")({
   head: () => ({
@@ -101,6 +87,25 @@ const STEPS = ["Basics", "Branding", "Socials", "Funding", "Review"] as const;
 
 const QUICK_AMOUNTS = [0.1, 0.5, 1, 5];
 
+// Same rationale as the step-in-URL persistence below: the wizard's local state
+// has been lost across remounts before, so the in-progress draft is mirrored to
+// sessionStorage. This only survives the current tab/session (not a permanent
+// account-level save), which is right for a draft that shouldn't reappear once
+// a launch actually succeeds.
+const FORM_STORAGE_KEY = "solvault-launch-draft";
+
+function loadDraftForm(): FormState {
+  if (typeof window === "undefined") return EMPTY;
+  try {
+    const raw = window.sessionStorage.getItem(FORM_STORAGE_KEY);
+    if (!raw) return EMPTY;
+    const parsed = JSON.parse(raw) as Partial<FormState>;
+    return { ...EMPTY, ...parsed };
+  } catch {
+    return EMPTY;
+  }
+}
+
 function parseSol(value: string): number {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -126,16 +131,10 @@ function Stepper({ step }: { step: number }) {
           >
             {i < step ? <Check className="size-3.5" /> : i + 1}
           </span>
-          <span
-            className={`hidden text-xs sm:block ${
-              i === step ? "text-foreground" : "text-muted-foreground"
-            }`}
-          >
+          <span className={`hidden text-xs sm:block ${i === step ? "text-foreground" : "text-muted-foreground"}`}>
             {label}
           </span>
-          {i < STEPS.length - 1 ? (
-            <span className="h-px flex-1 bg-border/60" />
-          ) : null}
+          {i < STEPS.length - 1 ? <span className="h-px flex-1 bg-border/60" /> : null}
         </li>
       ))}
     </ol>
@@ -153,11 +152,9 @@ function LaunchPage() {
     const value = Number(new URLSearchParams(window.location.search).get("step"));
     return Number.isInteger(value) ? Math.min(Math.max(value, 0), STEPS.length - 1) : 0;
   });
-  const [form, setForm] = useState<FormState>(EMPTY);
+  const [form, setForm] = useState<FormState>(loadDraftForm);
   const [tx, setTx] = useState<TxState>({ phase: "idle" });
-  const [launched, setLaunched] = useState<{ mint: string; signature: string } | null>(
-    null,
-  );
+  const [launched, setLaunched] = useState<{ mint: string; signature: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [aiPrompt, setAiPrompt] = useState("");
@@ -215,9 +212,18 @@ function LaunchPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const set =
-    (key: Exclude<keyof FormState, "creatorPercent">) => (value: string) =>
-      setForm((f) => ({ ...f, [key]: value }));
+  const set = (key: Exclude<keyof FormState, "creatorPercent">) => (value: string) =>
+    setForm((f) => ({ ...f, [key]: value }));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(form));
+    } catch {
+      // sessionStorage can be unavailable (private browsing, quota) — losing
+      // draft persistence isn't fatal, so fail silently.
+    }
+  }, [form]);
 
   const basicsValid = form.name.trim().length > 1 && form.symbol.trim().length > 0;
 
@@ -236,9 +242,7 @@ function LaunchPage() {
       window.history.replaceState(
         window.history.state,
         "",
-        window.location.pathname +
-          (query ? "?" + query : "") +
-          window.location.hash,
+        window.location.pathname + (query ? "?" + query : "") + window.location.hash,
       );
     }
   }
@@ -284,8 +288,7 @@ function LaunchPage() {
         creatorPercent,
       });
 
-      const { blockhash, lastValidBlockHeight } =
-        await connection.getLatestBlockhash("confirmed");
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
       transaction.partialSign(mint);
@@ -295,10 +298,7 @@ function LaunchPage() {
 
       const signature = await connection.sendRawTransaction(signed.serialize());
       setTx({ phase: "confirming", signature });
-      await connection.confirmTransaction(
-        { signature, blockhash, lastValidBlockHeight },
-        "confirmed",
-      );
+      await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
 
       await register({
         data: {
@@ -323,6 +323,9 @@ function LaunchPage() {
 
       setTx({ phase: "success", signature });
       setLaunched({ mint: mint.publicKey.toBase58(), signature });
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem(FORM_STORAGE_KEY);
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : "Launch failed";
       setTx({ phase: "error", message });
@@ -336,15 +339,11 @@ function LaunchPage() {
       <AppLayout>
         <div className="glass rise-in mx-auto max-w-xl rounded-3xl p-8 text-center">
           <div className="float-slow mb-4 text-6xl">🚀</div>
-          <h1 className="font-display text-2xl text-cosmic">
-            {form.symbol.toUpperCase()} is live
-          </h1>
+          <h1 className="font-display text-2xl text-cosmic">{form.symbol.toUpperCase()} is live</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Your token was created on Solana {NETWORK_DISPLAY_LABEL}.
           </p>
-          <p className="mt-4 break-all font-mono text-xs text-muted-foreground">
-            {launched.mint}
-          </p>
+          <p className="mt-4 break-all font-mono text-xs text-muted-foreground">{launched.mint}</p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <Button asChild>
               <Link to="/token/$mint" params={{ mint: launched.mint }}>
@@ -385,8 +384,7 @@ function LaunchPage() {
             <div className="space-y-5">
               <div className="rounded-2xl bg-secondary/30 p-4">
                 <Label htmlFor="ai-prompt" className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-accent" /> Need ideas? Describe your
-                  vibe
+                  <Sparkles className="size-4 text-accent" /> Need ideas? Describe your vibe
                 </Label>
                 <div className="mt-2 flex gap-2">
                   <Input
@@ -402,11 +400,7 @@ function LaunchPage() {
                     disabled={ideas.isPending || aiPrompt.trim().length < 2}
                     onClick={() => ideas.mutate(aiPrompt.trim())}
                   >
-                    {ideas.isPending ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="size-4" />
-                    )}
+                    {ideas.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                     Suggest
                   </Button>
                 </div>
@@ -428,12 +422,9 @@ function LaunchPage() {
                           }}
                         >
                           <span className="text-sm text-foreground">
-                            {idea.name}{" "}
-                            <span className="text-accent">${idea.symbol}</span>
+                            {idea.name} <span className="text-accent">${idea.symbol}</span>
                           </span>
-                          <span className="mt-1 block text-xs text-muted-foreground">
-                            {idea.description}
-                          </span>
+                          <span className="mt-1 block text-xs text-muted-foreground">{idea.description}</span>
                         </button>
                       </li>
                     ))}
@@ -479,11 +470,7 @@ function LaunchPage() {
                   disabled={improve.isPending || form.description.trim().length < 3}
                   onClick={() => improve.mutate()}
                 >
-                  {improve.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-4" />
-                  )}
+                  {improve.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                   Improve my description
                 </Button>
               </div>
@@ -530,9 +517,7 @@ function LaunchPage() {
                     Upload image
                   </Button>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  PNG, JPG, GIF or WebP up to 2MB.
-                </p>
+                <p className="mt-2 text-xs text-muted-foreground">PNG, JPG, GIF or WebP up to 2MB.</p>
               </div>
               <div>
                 <Label htmlFor="image-url">Or paste an image URL</Label>
@@ -572,8 +557,7 @@ function LaunchPage() {
           {step === 3 ? (
             <div className="space-y-5">
               <p className="text-sm text-muted-foreground">
-                Choose how much SOL to put behind your launch. Leave any of these blank
-                to skip them.
+                Choose how much SOL to put behind your launch. Leave any of these blank to skip them.
               </p>
 
               {(
@@ -590,9 +574,7 @@ function LaunchPage() {
                     inputMode="decimal"
                     value={form[key]}
                     placeholder="0.00"
-                    onChange={(e) =>
-                      set(key)(e.target.value.replace(/[^0-9.]/g, "").slice(0, 12))
-                    }
+                    onChange={(e) => set(key)(e.target.value.replace(/[^0-9.]/g, "").slice(0, 12))}
                   />
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {QUICK_AMOUNTS.map((amount) => (
@@ -614,9 +596,7 @@ function LaunchPage() {
               <div className="rounded-2xl bg-secondary/30 p-4">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="creator-percent">Supply you keep</Label>
-                  <span className="text-sm font-medium text-foreground">
-                    {creatorPercent}%
-                  </span>
+                  <span className="text-sm font-medium text-foreground">{creatorPercent}%</span>
                 </div>
                 <Slider
                   id="creator-percent"
@@ -625,9 +605,7 @@ function LaunchPage() {
                   max={100}
                   step={1}
                   value={[creatorPercent]}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, creatorPercent: v[0] ?? 100 }))
-                  }
+                  onValueChange={(v) => setForm((f) => ({ ...f, creatorPercent: v[0] ?? 100 }))}
                 />
                 <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
                   <div className="rounded-xl bg-background/50 p-3">
@@ -644,23 +622,19 @@ function LaunchPage() {
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  The share you let go is held in the Sol Vault wallet until pool
-                  launching goes live.
+                  The share you let go is held in the Sol Vault wallet until pool launching goes live.
                 </p>
               </div>
 
               <div className="rounded-2xl bg-secondary/30 p-4 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Running total</span>
-                  <span className="font-medium text-foreground">
-                    {formatSol(totalSol)}
-                  </span>
+                  <span className="font-medium text-foreground">{formatSol(totalSol)}</span>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Includes the {formatSol(launchFee)} launch fee and the{" "}
-                  {formatSol(networkFee)} network fee. Liquidity and simulated activity
-                  are held in the Sol Vault wallet for now and applied when pool
-                  launching goes live.
+                  Includes the {formatSol(launchFee)} launch fee and the {formatSol(networkFee)} network fee. Liquidity
+                  and simulated activity are held in the Sol Vault wallet for now and applied when pool launching goes
+                  live.
                 </p>
               </div>
             </div>
@@ -669,21 +643,14 @@ function LaunchPage() {
           {step === 4 ? (
             <div className="space-y-5">
               <div className="flex items-center gap-4">
-                {form.imageUrl ? (
-                  <img
-                    src={form.imageUrl}
-                    alt=""
-                    className="size-14 rounded-xl object-cover"
-                  />
-                ) : null}
+                {form.imageUrl ? <img src={form.imageUrl} alt="" className="size-14 rounded-xl object-cover" /> : null}
                 <div>
                   <p className="font-display text-lg text-foreground">
-                    {form.name || "Unnamed"}{" "}
-                    <span className="text-accent">${form.symbol || "???"}</span>
+                    {form.name || "Unnamed"} <span className="text-accent">${form.symbol || "???"}</span>
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {TOKEN_DEFAULTS.totalSupply.toLocaleString()} supply ·{" "}
-                    {TOKEN_DEFAULTS.decimals} decimals · fixed supply
+                    {TOKEN_DEFAULTS.totalSupply.toLocaleString()} supply · {TOKEN_DEFAULTS.decimals} decimals · fixed
+                    supply
                   </p>
                 </div>
               </div>
@@ -721,15 +688,11 @@ function LaunchPage() {
                 </div>
                 <div className="flex justify-between py-3">
                   <dt className="font-medium text-foreground">Total</dt>
-                  <dd className="font-medium text-foreground">
-                    {config ? formatSol(totalSol) : "…"}
-                  </dd>
+                  <dd className="font-medium text-foreground">{config ? formatSol(totalSol) : "…"}</dd>
                 </div>
                 <div className="flex justify-between py-3">
                   <dt className="text-muted-foreground">Paying wallet</dt>
-                  <dd className="font-mono text-xs">
-                    {truncateAddress(publicKey?.toBase58(), 4) || "—"}
-                  </dd>
+                  <dd className="font-mono text-xs">{truncateAddress(publicKey?.toBase58(), 4) || "—"}</dd>
                 </div>
               </dl>
 
@@ -751,14 +714,10 @@ function LaunchPage() {
               {tx.phase !== "idle" ? (
                 <p
                   className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
-                    tx.phase === "error"
-                      ? "bg-destructive/15 text-destructive"
-                      : "bg-primary/10 text-foreground"
+                    tx.phase === "error" ? "bg-destructive/15 text-destructive" : "bg-primary/10 text-foreground"
                   }`}
                 >
-                  {tx.phase !== "error" && tx.phase !== "success" ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : null}
+                  {tx.phase !== "error" && tx.phase !== "success" ? <Loader2 className="size-4 animate-spin" /> : null}
                   {tx.phase === "error" ? tx.message : TX_STATE_LABEL[tx.phase]}
                 </p>
               ) : null}
@@ -774,19 +733,14 @@ function LaunchPage() {
 
               {notEnoughSol ? (
                 <p className="rounded-xl bg-destructive/15 px-4 py-3 text-sm text-destructive">
-                  Not enough SOL — you need {formatSol(totalSol)} plus a little for
-                  network costs.
+                  Not enough SOL — you need {formatSol(totalSol)} plus a little for network costs.
                 </p>
               ) : null}
             </div>
           ) : null}
 
           <div className="mt-8 flex items-center justify-between gap-3">
-            <Button
-              variant="ghost"
-              disabled={step === 0}
-              onClick={() => goToStep(step - 1)}
-            >
+            <Button variant="ghost" disabled={step === 0} onClick={() => goToStep(step - 1)}>
               Back
             </Button>
             {step < 4 ? (
@@ -796,10 +750,7 @@ function LaunchPage() {
             ) : (
               <Button
                 type="button"
-                disabled={
-                  !basicsValid ||
-                  (tx.phase !== "idle" && tx.phase !== "error")
-                }
+                disabled={!basicsValid || (tx.phase !== "idle" && tx.phase !== "error")}
                 onClick={() => setPayOpen(true)}
               >
                 <Rocket className="size-4" />
@@ -815,8 +766,8 @@ function LaunchPage() {
           <DialogHeader>
             <DialogTitle>Pay {formatSol(totalSol)}</DialogTitle>
             <DialogDescription>
-              Send the total to the Sol Vault wallet. Confirm below to pay and launch
-              straight from your connected wallet, or scan the code to send it yourself.
+              Send the total to the Sol Vault wallet. Confirm below to pay and launch straight from your connected
+              wallet, or scan the code to send it yourself.
             </DialogDescription>
           </DialogHeader>
 
@@ -834,9 +785,7 @@ function LaunchPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                void navigator.clipboard.writeText(
-                  config?.receivingWallet ?? DEFAULT_SOL_VAULT_RECEIVING_WALLET,
-                );
+                void navigator.clipboard.writeText(config?.receivingWallet ?? DEFAULT_SOL_VAULT_RECEIVING_WALLET);
                 toast.success("Address copied");
               }}
             >
@@ -848,26 +797,17 @@ function LaunchPage() {
           {tx.phase !== "idle" ? (
             <p
               className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
-                tx.phase === "error"
-                  ? "bg-destructive/15 text-destructive"
-                  : "bg-primary/10 text-foreground"
+                tx.phase === "error" ? "bg-destructive/15 text-destructive" : "bg-primary/10 text-foreground"
               }`}
             >
-              {tx.phase !== "error" && tx.phase !== "success" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
+              {tx.phase !== "error" && tx.phase !== "success" ? <Loader2 className="size-4 animate-spin" /> : null}
               {tx.phase === "error" ? tx.message : TX_STATE_LABEL[tx.phase]}
             </p>
           ) : null}
 
           <Button
             type="button"
-            disabled={
-              !connected ||
-              !config ||
-              notEnoughSol ||
-              (tx.phase !== "idle" && tx.phase !== "error")
-            }
+            disabled={!connected || !config || notEnoughSol || (tx.phase !== "idle" && tx.phase !== "error")}
             onClick={() => void handleLaunch()}
           >
             <Rocket className="size-4" />
