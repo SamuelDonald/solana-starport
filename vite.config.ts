@@ -84,6 +84,11 @@ export default defineConfig({
           find: /^rpc-websockets\/dist\/lib\/client\/websocket\.js$/,
           replacement: rpcWebsocketsBrowser,
         },
+        // Solana's bundled browser builds require("buffer"); without this the
+        // production bundle resolves it to an empty module and crashes at
+        // start-up ("Cannot read properties of undefined (reading 'from')").
+        { find: /^buffer$/, replacement: bufferModule },
+        { find: /^node:buffer$/, replacement: bufferModule },
       ],
     },
   },
