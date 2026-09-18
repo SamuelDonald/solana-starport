@@ -332,7 +332,7 @@ function LaunchPage() {
       <PageHeading
         eyebrow="Create"
         title="Launch your token"
-        subtitle="Four short steps. We mint a real SPL token, send the full supply to your wallet and lock the supply so no more can ever be created."
+        subtitle="Five short steps. We mint a real SPL token, split the supply the way you choose and lock it so no more can ever be created."
       />
 
       <div className="mx-auto max-w-2xl">
